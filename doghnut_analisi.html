@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mappa Competenze Chirurgiche - Analisi Dettagliata</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+    <script>Chart.register(ChartDataLabels);
+        tailwind.config = { darkMode: 'class' };</script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-200 transition-colors duration-300">
+
+    <!-- HEADER -->
+    <header class="bg-blue-700 text-white px-6 py-4 flex items-center justify-between">
+        <h6 class="text-[10px] font-semibold">Mappa Competenze Chirurgiche</h6>
+
+        <div class="flex items-center space-x-3">
+            <button onclick="window.location.href='report.html'"
+                    class="bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition-colors text-sm">
+                ← Torna al Report
+            </button>
+
+            <button id="themeToggle"
+                    class="bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition-colors"
+                    aria-label="Cambia tema">
+                <span id="themeIcon">☀️</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN -->
+    <main class="container mx-auto p-6">
+        <div class="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-2xl relative flex flex-col items-center">
+
+            <!-- DOUGHNUT -->
+            <div class="relative h-[650px] w-[650px] flex items-center justify-center">
+                <canvas id="targetChart" class="w-full h-full"></canvas>
+
+                <div id="centerText" class="absolute text-center pointer-events-none">
+                    <p class="text-lg font-bold text-blue-700 dark:text-blue-300 leading-tight">
+                        Mappa<br>Competenze<br>Chirurgiche
+                    </p>
+                </div>
+
+                <p id="noDataMessage" class="absolute hidden text-xl text-center text-red-500
+               bg-white/90 dark:bg-gray-800/90 p-4 rounded-lg shadow-lg">
+                    Nessun dato di competenza trovato.
+                </p>
+            </div>
+
+            <!-- LEGENDA NUCLEO -->
+            <div id="chartLegend" class="mt-8 w-full max-w-xl">
+                <h3 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700 dark:text-gray-300">
+                    Legenda Classi di Livello (Nucleo)
+                </h3>
+                <div id="legendItems" class="grid grid-cols-2 gap-4 text-sm font-semibold"></div>
+            </div>
+
+            <!-- PIANO D'AZIONE -->
+            <div id="actionPlanLegend"
+                 class="mt-12 w-full max-w-4xl p-6 bg-white dark:bg-gray-800 rounded-xl shadow-2xl
+                    border border-blue-200 dark:border-blue-700">
+
+                <h3 class="text-xl font-bold mb-4 text-blue-700 dark:text-blue-300 border-b pb-2">
+                    Piano d'Azione Strategico per la Crescita
+                </h3>
+
+                <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+
+                    <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700 shadow-lg border-t-4 border-blue-500/70">
+                        <p class="text-lg font-bold text-blue-500 mb-2">
+                            Da Livello 1 (Diretta) a 2 (Indiretta)
+                        </p>
+                        <p class="font-semibold text-gray-800 dark:text-gray-200">
+                            Azione: Simulatori e Training Intensivo.
+                        </p>
+                        <p class="text-sm italic text-gray-600 dark:text-gray-400 mt-1">
+                            Misura: Numero di Sessioni di Simulazione/Formazione Completate.
+                        </p>
+                    </div>
+
+                    <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700 shadow-lg border-t-4 border-green-500/70">
+                        <p class="text-lg font-bold text-green-500 mb-2">
+                            Da Livello 2 (Indiretta) a 3 (Autonomo)
+                        </p>
+                        <p class="font-semibold text-gray-800 dark:text-gray-200">
+                            Azione: Programmi di Mentorship Mirata.
+                        </p>
+                        <p class="text-sm italic text-gray-600 dark:text-gray-400 mt-1">
+                            Misura: Affiancamenti completati con valutazione finale di Autonomia.
+                        </p>
+                    </div>
+
+                    <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-700 shadow-lg border-t-4 border-amber-500/70">
+                        <p class="text-lg font-bold text-amber-500 mb-2">
+                            Da Livello 3 (Autonomo) a 4 (Formatore)
+                        </p>
+                        <p class="font-semibold text-gray-800 dark:text-gray-200">
+                            Azione: Certificazione da Valutatore Interno.
+                        </p>
+                        <p class="text-sm italic text-gray-600 dark:text-gray-400 mt-1">
+                            Misura: Numero di Corsi di Formazione Interna tenuti.
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- SCRIPT PRINCIPALE -->
+    <script>/* -------------------------------------------
+           CONFIGURAZIONE GENERALE
+        ------------------------------------------- */
+        const THEME_KEY = 'mappa_tiro_tema';
+        const STORAGE_KEY = 'valutazioni_dashboard_v2';
+        let chart = null;
+
+
+        const repartiMap = {
+            'Chirurgia Generale': { name: 'Chirurgia Generale', color: "#a8dadc", sigla: 'CG' },
+            'Chirurgie Specialistiche': { name: 'Chirurgie Specialistiche', color: "#f7a8a8", sigla: 'CS' },
+            'Day Surgery Oculistica': { name: 'Day Surgery Oculistica', color: "peachpuff", sigla: 'DSO' },
+        };
+
+        const classiMap = {
+            4: { label: "Form", color: "#cdb4db" },
+            3: { label: "Aut", color: "turquoise" },
+            2: { label: "Ind", color: "wheat" },
+            1: { label: "Dir", color: "#f7a8a8" },
+        };
+
+        const levelOrder = [4, 3, 2, 1];
+
+        let currentTheme = localStorage.getItem(THEME_KEY) || 'light';
+
+
+
+        /* -------------------------------------------
+           DARK MODE
+        ------------------------------------------- */
+        const isDarkMode = () =>
+            document.documentElement.classList.contains('dark');
+
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+                document.getElementById('themeIcon').textContent = '🌙';
+                Chart.defaults.color = '#e5e7eb';
+                Chart.defaults.borderColor = '#374151';
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('themeIcon').textContent = '☀️';
+                Chart.defaults.color = '#1f2937';
+                Chart.defaults.borderColor = '#e5e7eb';
+            }
+        }
+
+
+
+        /* -------------------------------------------
+   AGGREGAZIONE DATI DA LOCALE
+------------------------------------------- */
+        function loadAggregatedCountsFromLocal() {
+
+            const raw = localStorage.getItem(STORAGE_KEY); // STESSA CHIAVE
+            if (!raw) {
+                console.warn("Nessun dato in locale");
+                return null;
+            }
+
+            const allData = JSON.parse(raw);
+            let aggregated = {};
+
+            Object.keys(allData).forEach(reparto => {
+                const repartoData = allData[reparto];
+                if (!repartiMap[reparto]) return;
+
+                repartoData.infermieri?.forEach(n => {
+                    const v = n.ultimaValutazione;
+                    if (!v || !Array.isArray(v.sections)) return;
+
+                    const sections = v.sections.filter(
+                        s => typeof s.average === "number"
+                    );
+
+                    if (sections.length === 0) return;
+
+                    const avg =
+                        sections.reduce((sum, s) => sum + s.average, 0) /
+                        sections.length;
+
+                    let level = 1;
+                    if (avg >= 3.5) level = 4;
+                    else if (avg >= 2.5) level = 3;
+                    else if (avg >= 1.5) level = 2;
+
+                    sections.forEach(sec => {
+                        const comp = sec.key;
+                        const key = `${reparto}|${comp}|${level}`;
+                        aggregated[key] = (aggregated[key] || 0) + 1;
+                    });
+                });
+            });
+
+            return aggregated;
+        }
+
+
+
+        /* -------------------------------------------
+           PREPARA DATI PER CHART (layout identico)
+        ------------------------------------------- */
+        function prepareChartData(aggregatedCounts) {
+            const structure = {};
+            let total = 0;
+
+            Object.keys(aggregatedCounts).forEach(key => {
+                const [reparto, competence, levelStr] = key.split('|');
+                const count = aggregatedCounts[key];
+                const level = parseInt(levelStr);
+                total += count;
+
+                if (!repartiMap[reparto]) return;
+
+                structure[reparto] ||= { count: 0, sub: {} };
+                structure[reparto].count += count;
+
+                structure[reparto].sub[competence] ||= { count: 0, levels: {} };
+                structure[reparto].sub[competence].count += count;
+
+                structure[reparto].sub[competence].levels[level] ||= 0;
+                structure[reparto].sub[competence].levels[level] += count;
+            });
+
+            if (total === 0) return null;
+
+            let levelData = { data: [], backgroundColor: [], labels: [] };
+            let competenceData = { data: [], backgroundColor: [], labels: [] };
+            let repartoData = { data: [], backgroundColor: [], labels: [] };
+
+            Object.keys(repartiMap).forEach(rep => {
+                if (!structure[rep]) return;
+
+                // livello esterno: reparto
+                repartoData.data.push(structure[rep].count);
+                repartoData.labels.push(rep);
+                repartoData.backgroundColor.push(repartiMap[rep].color);
+
+                Object.keys(structure[rep].sub).forEach(comp => {
+                    const compItem = structure[rep].sub[comp];
+
+                    competenceData.data.push(compItem.count);
+                    competenceData.labels.push(comp);
+                    competenceData.backgroundColor.push(
+                        Chart.helpers.color(repartiMap[rep].color).darken(0.1).rgbString()
+                    );
+
+                    levelOrder.forEach(level => {
+                        if (compItem.levels[level]) {
+                            levelData.data.push(compItem.levels[level]);
+                            levelData.labels.push(classiMap[level].label);
+                            levelData.backgroundColor.push(classiMap[level].color);
+                        }
+                    });
+                });
+            });
+
+            return { level: levelData, competence: competenceData, reparto: repartoData };
+        }
+
+
+
+        /* -------------------------------------------
+           CREA IL GRAFICO
+        ------------------------------------------- */
+        function initChart(data) {
+            const ctx = document.getElementById("targetChart").getContext("2d");
+
+            return new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [
+                        {
+                            label: "Classi",
+                            data: data.level.data,
+                            backgroundColor: data.level.backgroundColor,
+                            labels: data.level.labels,
+                            borderWidth: 4,
+                            cutout: "10%",
+                            weight: 0.5,
+                            datalabels: {
+                                display: true,
+                                formatter: (v, ctx) =>
+                                    ctx.dataset.labels[ctx.dataIndex],
+                                color: "grey",
+                                font: { weight: "bold", size: 14 }
+                            }
+                        },
+                        {
+                            label: "Competenze",
+                            data: data.competence.data,
+                            backgroundColor: data.competence.backgroundColor,
+                            labels: data.competence.labels,
+                            borderWidth: 4,
+                            cutout: "15%",
+                            weight: 0.5,
+                            datalabels: {
+                                display: true,
+                                formatter: (v, ctx) =>
+                                    ctx.dataset.labels[ctx.dataIndex],
+                                color: "grey",
+                                font: { weight: "bold", size: 10 }
+                            }
+                        },
+                        {
+                            label: "Reparti",
+                            data: data.reparto.data,
+                            backgroundColor: data.reparto.backgroundColor,
+                            labels: data.reparto.labels,
+                            borderWidth: 4,
+                            cutout: "20%",
+                            weight: 0.3,
+                            datalabels: {
+                                display: true,
+                                formatter: (v, ctx) =>
+                                    ctx.dataset.labels[ctx.dataIndex],
+                                color: "darkblue",
+                                font: { weight: "bold", size: 18 },
+                                anchor: 'end',
+                                align: 'end',
+                                offset: 0
+                            }
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+
+
+        /* -------------------------------------------
+           LEGENDA
+        ------------------------------------------- */
+        function renderLegend() {
+            const legend = document.getElementById('legendItems');
+            legend.innerHTML = '';
+
+            levelOrder.forEach(level => {
+                const info = classiMap[level];
+                legend.innerHTML += `
+                    <div class="flex items-center space-x-2 p-2 rounded-lg bg-gray-100 dark:bg-gray-700 shadow-sm">
+                        <span class="w-4 h-4 rounded-full"
+                              style="background:${info.color};"></span>
+                        <span>Livello ${level}: ${info.label}</span>
+                    </div>
+                `;
+            });
+        }
+
+
+
+        /* -------------------------------------------
+           INIZIALIZZAZIONE PRINCIPALE
+        ------------------------------------------- */
+        async function init() {
+            applyTheme(currentTheme);
+            renderLegend();
+
+            const chartDiv = document.getElementById('targetChart');
+            const noData = document.getElementById('noDataMessage');
+            const centerText = document.getElementById('centerText');
+
+            const aggregated = loadAggregatedCountsFromLocal();
+
+
+            if (!aggregated || Object.keys(aggregated).length === 0) {
+                noData.classList.remove('hidden');
+                chartDiv.style.display = 'none';
+                centerText.style.display = 'none';
+                return;
+            }
+
+            const data = prepareChartData(aggregated);
+
+            if (!data || data.reparto.data.length === 0) {
+                noData.classList.remove('hidden');
+                chartDiv.style.display = 'none';
+                centerText.style.display = 'none';
+                return;
+            }
+
+            noData.classList.add('hidden');
+
+            if (chart) chart.destroy();
+            chart = initChart(data);
+        }
+
+
+
+        /* -------------------------------------------
+           EVENTI DOM
+        ------------------------------------------- */
+        document.addEventListener("DOMContentLoaded", () => {
+            init();
+
+            document.getElementById('themeToggle')
+                .addEventListener('click', () => {
+                    const newTheme = isDarkMode() ? 'light' : 'dark';
+                    currentTheme = newTheme;
+                    localStorage.setItem(THEME_KEY, newTheme);
+                    applyTheme(newTheme);
+                    if (chart) chart.update();
+                });
+        });</script>
+
+</body>
+</html>

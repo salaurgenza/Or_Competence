@@ -1,0 +1,1232 @@
+<!doctype html>
+<html lang="it">
+<head>
+    <style>
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .modal-box {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 900px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+    </style>
+
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Valutazioni - Report</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <script>// Configurazione Tailwind per abilitare la dark mode tramite classe 'dark' sul tag <html>
+        tailwind.config = {
+            darkMode: 'class',
+        }</script>
+    <style>
+        body {
+            font-family: 'Inter',sans-serif
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-200 transition-colors duration-300">
+    <header class="bg-blue-700 text-white px-6 py-4 flex items-center justify-between">
+        <h1 class="text-xl font-semibold">Report Valutazioni</h1>
+        <div class="flex items-center space-x-3">
+            <button id="themeToggle" class="bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition-colors" aria-label="Cambia tema">
+                <span id="themeIcon">☀️</span>
+            </button>
+            <a href="index.html" class="bg-white/10 hover:bg-white/20 px-3 py-1 rounded transition-colors">Torna inserimento</a>
+        </div>
+    </header>
+
+
+    <section class="flex gap-4 justify-center my-6">
+        <button class="bg-blue-600 text-white px-4 py-2 rounded" onclick="openModal('Generali')">
+            S.O. Ch. Generali
+        </button>
+        <button class="bg-purple-600 text-white px-4 py-2 rounded" onclick="openModal('Specialistiche')">
+            S.O. Ch. Specialistiche
+        </button>
+        <button class="bg-green-600 text-white px-4 py-2 rounded" onclick="openModal('Oculistica')">
+            DS Oculistica
+        </button>
+        <button onclick="window.location.href='doghnut_analisi.html'" class="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold px-6 py-2 rounded transition-colors text-lg">
+            Mappa Competenze📊
+        </button>
+    </section>
+    <main class="p-6 max-w-6xl mx-auto space-y-6">
+
+        <div class="grid md:grid-cols-3 gap-6">
+
+            <section class="space-y-4 md:col-span-1">
+                <div class="bg-white dark:bg-gray-800 p-4 rounded shadow dark:shadow-lg space-y-3 transition-colors duration-300">
+                    <h3 class="font-semibold mb-2">Filtri</h3>
+                    <div>
+                        <label class="block text-sm mb-1">Filtro Reparto</label>
+                        <select id="filterReparto" class="p-2 border rounded w-full bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                            <option value="">— Tutti —</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm mb-1">Ricerca testo</label>
+                        <input id="searchText" class="p-2 border rounded w-full dark:bg-gray-700 dark:border-gray-600" placeholder="cerca nome, reparto, matricola...">
+                    </div>
+                </div>
+            </section>
+
+            <div class="md:col-span-2 space-y-6">
+                <section class="bg-white dark:bg-gray-800 p-4 rounded shadow dark:shadow-lg transition-colors duration-300">
+                    <h3 class="font-semibold mb-2">Distribuzione per livello medio (Totale)</h3>
+                    <div class="h-64">
+                        <canvas id="barChart" class="w-full h-full"></canvas>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+
+
+
+        <section class="bg-white dark:bg-gray-800 p-4 rounded shadow dark:shadow-lg transition-colors duration-300">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold">Tabella valutazioni (Clicca sulla riga per i dettagli)</h3>
+                <div class="flex gap-2">
+                    <button id="exportJSON" class="bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100 px-3 py-1 rounded transition-colors">Esporta JSON</button>
+                    <button id="exportCSV" class="bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100 px-3 py-1 rounded transition-colors">Esporta CSV</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table id="resultsTable" class="w-full text-sm table-auto">
+                    <thead class="bg-gray-100 dark:bg-gray-700">
+                        <tr>
+                            <th class="p-2 text-left">Data Valutazione</th>
+                            <th class="p-2 text-left">Nome e Cognome</th>
+                            <th class="p-2 text-left">Matricola</th>
+                            <th class="p-2 text-left">Reparto</th>
+                            <th class="p-2 text-left">ICP</th>
+                            <th class="p-2 text-left">LCGM</th>
+                            <th class="p-2 text-left">Punteggio Tot.</th>
+                            <th class="p-2 text-left">Alert</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <div id="detailsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-4 border-b pb-2">
+                <h3 id="modalNurseName" class="text-2xl font-bold text-blue-700 dark:text-blue-300">Dettagli Valutazione</h3>
+                <button id="closeModal" class="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 text-xl font-bold">&times;</button>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="text-lg font-semibold mb-2">Riepilogo Infermiere</h4>
+                    <div id="nurseDetailsSummary" class="text-sm space-y-1">
+                    </div>
+
+                    <h4 class="text-lg font-semibold mt-6 mb-2">Livelli di Competenza Dettagliati</h4>
+                    <div id="competenceDetails" class="text-sm space-y-3 max-h-96 overflow-y-auto pr-2">
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-lg font-semibold mb-2">Performance per Area (Radar)</h4>
+                    <div class="h-96 w-full">
+                        <canvas id="radarDetailsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 text-right">
+                <button id="modalCloseBottom" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>// RIFERIMENTI DOM GLOBALI
+        const filterReparto = document.getElementById('filterReparto');
+        const searchText = document.getElementById('searchText');
+        const resultsTableBody = document.getElementById('resultsTable') ? document.getElementById('resultsTable').querySelector('tbody') : null;
+        const detailsModal = document.getElementById('detailsModal');
+        const modalNurseName = document.getElementById('modalNurseName');
+        const nurseDetailsSummary = document.getElementById('nurseDetailsSummary');
+        const competenceDetails = document.getElementById('competenceDetails');
+        const closeModalButtons = [document.getElementById('closeModal'), document.getElementById('modalCloseBottom')];
+
+
+        // Mappature e variabili globali
+        const STORAGE_KEY = 'valutazioni_dashboard_v2';
+        const THEME_KEY = 'valutazioni_theme';
+        const LEVEL_MAP = { 1: "Diretta", 2: "Indiretta", 3: "Autonomo", 4: "Formatore" };
+        const MODAL_MACRO_MAP = {
+            Generali: "Chirurgia Generale",
+            Specialistiche: "Chirurgie Specialistiche",
+            Oculistica: "Day Surgery Oculistica"
+        };
+        const COMPLEXITY_WEIGHTS = {
+            'Chirurgia Addominale': 3, 'Chirurgia Vascolare': 4, 'Chirurgia Endocrino e Metabolica': 3,
+            'Chirurgia EpatoBiliare': 4, 'Chirurgia Toracica': 4, 'Chirurgia Trapianti': 5,
+            'Chirurgia Urologia': 3, 'Chirurgia Pediatrica': 3, 'Ch. Senologica': 3,
+            'Ch. plastica': 3, 'Ortopedia e Traumatologia': 3, 'Chirurgia Vertebrale': 4,
+            'Neurochirurgia': 5, 'Otorinolaringoiatria': 3, 'Maxillo-Facciale': 4,
+            'Cataratta': 2, 'Vitreo retina': 3, 'Glaucoma': 3, 'Palpebra': 2, 'Cornea': 3,
+            'Orbita e Congiuntiva': 3
+        };
+
+        let all = []; // Dati principali (caricati da loadAll)
+        let barChart; // Grafico principale (Distribuzione Livelli)
+        let pieCharts = {}; // Grafici a torta delle modali (Distribuzione Livelli)
+        let barModalCharts = {}; // Grafici a barre delle modali (Media % per Area)
+        let radarDetailsChart = null; // Riferimento al grafico radar della modale dettagli
+        let currentTheme = localStorage.getItem(THEME_KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+        // Struttura dati fissa delle competenze (necessaria per ricostruire i dettagli item)
+        const COMPETENCE_DATA = {
+            "Chirurgia Generale": [
+                { key: 'Chirurgia Addominale', questions: ['LAPAROTOMIA ESPLORATIVA...', 'LAPAROSCOPIA ESPLORATIVA...'] },
+                { key: 'Chirurgia Vascolare', questions: ['LEGATURA E STRIPPING DI VENE...'] },
+                { key: 'Chirurgia Endocrino e Metabolica', questions: ['LOBOISTMECTOMIA TIROIDEA...'] },
+                { key: 'Chirurgia EpatoBiliare', questions: ['FENESTRAZIONE DI CISTI EPATICA LPS...'] },
+                { key: 'Chirurgia Toracica', questions: ['TORACOTOMIA ESPLORATIVA...'] },
+                { key: 'Chirurgia Trapianti', questions: ['TX DI RENE DA VIVENTE / MORTE...'] },
+                { key: 'Chirurgia Urologia', questions: ['TURV, TURP...'] },
+                { key: 'Chirurgia Pediatrica', questions: ['CHIUSURA DI COLOSTOMIA CON RESEZIONE E ANASTOMOSI...'] }
+            ],
+            "Chirurgie Specialistiche": [
+                { key: 'Ch. Senologica', questions: ['Biopsia del linfonodo sentinella...'] },
+                { key: 'Ch. plastica', questions: ['Asportazione radicale di lesione della cute...'] },
+                { key: 'Ortopedia e Traumatologia', questions: ['CHIRURGIA OMERO frattura...'] },
+                { key: 'Chirurgia Vertebrale', questions: ['CHIRURGIA VERTEBRALE BASE biopsia percutanea/open...'] },
+                { key: 'Neurochirurgia', questions: ['CHIRURGIA DELL/IDROCEFALO: derivazioni lombo-peritoneali...'] },
+                { key: 'Otorinolaringoiatria', questions: ['CAVO ORALE: adenotonsillectomia...'] },
+                { key: 'Maxillo-Facciale', questions: ['CAVO ORALE:asportazione neoformazione lingua...'] }
+            ],
+            "Day Surgery Oculistica": [
+                { key: 'Cataratta', questions: ['13.72 - IMPIANTO SECONDARIO DI CRISTALLINO ARTIFICIALE...'] },
+                { key: 'Vitreo retina', questions: ['14.72 - ALTRA RIMOZIONE DEL CORPO VITREO...'] },
+                { key: 'Glaucoma', questions: ['12.69 - ALTRI INTERVENTI DI FISTOLIZZAZIONE DELLA SCLERA...'] },
+                { key: 'Palpebra', questions: ['08.24 - ASPORTAZIONE DI LESIONE ESTESA DELLA PALPEBRA...'] },
+                { key: 'Cornea', questions: ['11.60 - TRAPIANTO DI CORNEA...'] },
+                { key: 'Orbita e Congiuntiva', questions: ['16.42 - ENUCLEAZIONE DEL BULBO OCULARE...'] }
+            ]
+        };
+        const SECTION_TO_MACRO = {};
+        Object.keys(COMPETENCE_DATA).forEach(repartoName => {
+            const macro = repartoName;
+            (COMPETENCE_DATA[repartoName] || []).forEach(sec => {
+                if (sec && sec.key) {
+                    SECTION_TO_MACRO[sec.key] = macro;
+                }
+            });
+        });
+
+        // ----------------------- // Funzioni Utilità // -----------------------
+
+        const scoreToLevelText = (score) => LEVEL_MAP[score] || 'Sconosciuto';
+        const isDarkMode = () => document.documentElement.classList.contains('dark');
+        const normalizeReparto = (r) => r.replace('Chirurgia Generale', 'Ch. Gen.').replace('Chirurgie Specialistiche', 'Ch. Spec.').replace('Day Surgery Oculistica', 'DS Ocul.');
+
+        function applyTheme(theme) {
+            document.documentElement.classList.toggle('dark', theme === 'dark');
+            document.getElementById('themeIcon').textContent = theme === 'dark' ? '🌙' : '☀️';
+            localStorage.setItem(THEME_KEY, theme);
+        }
+
+        function initThemeToggle() {
+            const toggleButton = document.getElementById('themeToggle');
+            if (toggleButton) {
+                toggleButton.addEventListener('click', () => {
+                    currentTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+                    applyTheme(currentTheme);
+                });
+            }
+        }
+
+
+        /* ==========================
+           CARICAMENTO DATI DA MYSQL
+           ========================== */
+
+        async function loadAll() {
+            let results = [];
+
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) {
+                    console.warn("⚠️ Nessun dato trovato in localStorage");
+                    all = [];
+                    return [];
+                }
+
+                const data = JSON.parse(raw);
+
+                let infermieri = [];
+
+                // Caso 1: struttura piatta
+                if (Array.isArray(data.infermieri)) {
+                    infermieri = data.infermieri;
+                }
+
+                // Caso 2: struttura per reparti
+                else {
+                    Object.values(data).forEach(rep => {
+                        if (rep?.infermieri && Array.isArray(rep.infermieri)) {
+                            infermieri.push(...rep.infermieri);
+                        }
+                    });
+                }
+
+                if (!infermieri.length) {
+                    console.warn("⚠️ Nessun infermiere trovato nel dataset");
+                }
+
+                infermieri.forEach(nurse => {
+                    const repartoKey = nurse.reparto;
+                    const lastEval = nurse.ultimaValutazione || null;
+                    if (!lastEval || !lastEval.sections) return;
+
+                    // ============================
+                    // 🔹 PARSING DATA SICURO
+                    // ============================
+                    let isoDate;
+                    if (lastEval.data) {
+                        const parsed = new Date(lastEval.data);
+                        isoDate = !isNaN(parsed.getTime())
+                            ? parsed.toISOString()
+                            : new Date().toISOString();
+                    } else {
+                        isoDate = new Date().toISOString();
+                    }
+
+                    // ============================
+                    // Calcolo punteggio classico
+                    // ============================
+                    const selections = lastEval.selections || [];
+                    const totalScore = selections.reduce(
+                        (sum, sel) => sum + Number(sel.value || 0),
+                        0
+                    );
+
+                    const totalItems = selections.filter(
+                        sel => Number(sel.value || 0) > 0
+                    ).length;
+
+                    const maxPossible = totalItems * 4;
+                    const percentage = maxPossible > 0
+                        ? (totalScore / maxPossible) * 100
+                        : 0;
+
+                    let newLevelNumber;
+                    if (percentage <= 25) newLevelNumber = 1;
+                    else if (percentage <= 50) newLevelNumber = 2;
+                    else if (percentage <= 75) newLevelNumber = 3;
+                    else newLevelNumber = 4;
+
+                    const newLevelText =
+                        LEVEL_MAP[newLevelNumber] || "Livello non definito";
+
+                    // ============================
+                    // Ricostruzione dettagli item
+                    // ============================
+                    const itemDetails = selections.map(selection => {
+                        const sectionData =
+                            COMPETENCE_DATA[repartoKey]?.[selection.sectionIndex];
+                        const questionText =
+                            sectionData?.questions?.[selection.itemIndex];
+
+                        return {
+                            question: questionText || "Domanda sconosciuta",
+                            level: scoreToLevelText(selection.value),
+                            score: Number(selection.value),
+                            sectionKey: sectionData?.key
+                        };
+                    }).filter(d => d.question);
+
+                    // ============================
+                    // PUSH RISULTATO FINALE
+                    // ============================
+                    results.push({
+                        date: isoDate,
+                        nome: nurse.nome,
+                        cognome: nurse.cognome,
+                        matricola: nurse.matricola || '',
+                        reparto: repartoKey,
+                        valutatore: nurse.valutatore || '-',
+                        classe: newLevelNumber,
+                        levelText: newLevelText,
+                        overall: totalScore,
+                        percentuale: percentage,
+                        evalDetails: lastEval.sections || [],
+                        nurse: nurse,
+                        allItemDetails: itemDetails
+                    });
+                });
+
+                console.log(`📦 Caricate ${results.length} valutazioni da localStorage`);
+
+            } catch (e) {
+                console.error("❌ Errore durante il caricamento locale:", e);
+            }
+
+            all = results;
+            return results;
+        }
+
+
+        /* ==========================
+           ICP (Indice Competenza Ponderato)
+           ========================== */
+
+        function getComplexityWeight(sectionKey) {
+            if (!sectionKey) return 2;
+            return COMPLEXITY_WEIGHTS[sectionKey] || 2;
+        }
+
+        function computeICPScore(item) {
+            const details = item.allItemDetails || [];
+            if (!details.length) return 0;
+
+            let num = 0; // Somma (Score * Peso)
+            let den = 0; // Somma (4 * Peso)
+            details.forEach(d => {
+                const score = d.score || 0;
+                if (score < 1) return; // Ignora domande non risposte/livello 0
+                const w = getComplexityWeight(d.sectionKey);
+                num += score * w;
+                den += 4 * w;
+            });
+
+            if (!den) return 0;
+            const icp = num / den;
+            return Math.max(0, Math.min(1, icp));
+        }
+
+        function icpScoreToLevel(score) {
+            if (score <= 0.25) return 1;
+            if (score <= 0.50) return 2;
+            if (score <= 0.75) return 3;
+            return 4;
+        }
+
+        function enrichAllWithICP() {
+            all.forEach(item => {
+                const icp = computeICPScore(item);
+                const level = icpScoreToLevel(icp);
+                item.icpScore = icp;
+                item.icpLevel = level;
+                item.icpLevelText = LEVEL_MAP[level] || `Livello ${level}`;
+            });
+        }
+
+        /* ==========================
+           LCGM (Indice AI - Logica non modificata)
+           ========================== */
+
+        function computeLCGMIndicators(item) {
+            // Logica per calcolare gli indicatori LCGM (mantenuta come nel tuo script)
+            const sections = item.evalDetails || [];
+            const details = item.allItemDetails || [];
+
+            let autonomiaNorm = 0;
+            if (sections.length > 0) {
+                const mediaSezioni = sections.reduce((sum, s) => sum + (s.average || 0), 0) / sections.length;
+                autonomiaNorm = mediaSezioni / 4;
+            }
+
+            const totalAnswers = sections.reduce((sum, s) => sum + (s.answeredCount || 0), 0);
+            const interventiNorm = Math.max(0, Math.min(1, totalAnswers / 20));
+
+            const totalSelections = details.length || 1;
+            const lowLevelSelections = details.filter(d => d.score && d.score <= 2).length;
+            const errorRate = lowLevelSelections / totalSelections;
+            const erroriNorm = 1 - errorRate;
+
+            let organizzazioneNorm = autonomiaNorm;
+            const orgSection = sections.find(s => (s.key || '').toLowerCase().includes('organizz'));
+            if (orgSection) {
+                organizzazioneNorm = (orgSection.average || 0) / 4;
+            }
+
+            const crescitaNorm = 0.5; // Placeholder
+            const apprendimentoNorm = 0.5; // Placeholder
+
+            let colliNorm = 1;
+            if (sections.length > 0) {
+                const bottleneckSections = sections.filter(s => (s.average || 0) <= 2).length;
+                colliNorm = 1 - (bottleneckSections / sections.length);
+            }
+
+            return { autonomiaNorm, interventiNorm, erroriNorm, organizzazioneNorm, crescitaNorm, apprendimentoNorm, colliNorm };
+        }
+
+        function computeLCGMScore(item) {
+            const ind = computeLCGMIndicators(item);
+            const score =
+                0.35 * ind.autonomiaNorm + 0.25 * ind.erroriNorm + 0.15 * ind.crescitaNorm +
+                0.10 * ind.organizzazioneNorm + 0.05 * ind.interventiNorm + 0.05 * ind.apprendimentoNorm +
+                0.05 * ind.colliNorm;
+            return Math.max(0, Math.min(1, score));
+        }
+
+        function lcgmScoreToLevel(score) {
+            if (score <= 0.25) return 1;
+            if (score <= 0.50) return 2;
+            if (score <= 0.75) return 3;
+            return 4;
+        }
+
+        function enrichAllWithLCGM() {
+            all.forEach(item => {
+                try {
+                    const score = computeLCGMScore(item);
+                    const level = lcgmScoreToLevel(score);
+                    item.aiScore = score;
+                    item.aiLevel = level;
+                    item.aiLevelText = LEVEL_MAP[level] || `Livello ${level}`;
+                } catch (e) {
+                    console.error('Errore LCGM per item', item, e);
+                }
+            });
+        }
+
+        /* ==========================
+           CHARTS
+           ========================== */
+
+        function createBarChart() {
+            const barCtx = document.getElementById('barChart').getContext('2d');
+            barChart = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['1 Diretta', '2 Indiretta', '3 Autonomo', '4 Formatore'],
+                    datasets: [{
+                        label: 'N. infermieri',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#6366f1']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true } },
+                    scales: {
+                        y: { beginAtZero: true, precision: 0, grid: { color: Chart.defaults.borderColor }, ticks: { color: Chart.defaults.color } },
+                        x: { grid: { color: Chart.defaults.borderColor }, ticks: { color: Chart.defaults.color } }
+                    }
+                }
+            });
+        }
+
+        function updateBarChart(list) {
+            const counts = [0, 0, 0, 0];
+            (list || all).forEach(it => {
+                // Utilizziamo il livello ICP per la distribuzione principale
+                const idx = Number(it.icpLevel || 0) - 1;
+                if (idx >= 0 && idx < 4) counts[idx]++;
+            });
+            barChart.data.datasets[0].data = counts;
+            barChart.update('none');
+        }
+
+        function ensurePieChart(tipo, kpi) {
+            if (pieCharts[tipo]) pieCharts[tipo].destroy();
+            const ctx = document.getElementById(`pie${tipo}`).getContext('2d');
+            const data = Object.values(kpi.levelDistribution);
+            const labels = Object.values(LEVEL_MAP);
+
+            pieCharts[tipo] = new Chart(ctx, { type: 'pie', data: { labels, datasets: [{ data, backgroundColor: ['#EAB308', '#F97316', '#10B981', '#3B82F6'] }] }, options: { responsive: true, maintainAspectRatio: false } });
+        }
+
+        function ensureBarChart(tipo, kpi) {
+            if (barModalCharts[tipo]) barModalCharts[tipo].destroy();
+            const ctx = document.getElementById(`bar${tipo}`).getContext('2d');
+            const labels = Object.keys(kpi.areaScores);
+            const data = Object.values(kpi.areaScores);
+
+            barModalCharts[tipo] = new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Perf. Media (%)', data, backgroundColor: '#3B82F6' }] }, options: { responsive: true, maintainAspectRatio: false } });
+        }
+
+
+        // SUNBURST DATA BUILDER (Usato per Chart Generale e Chart Modali)
+        function buildSunburstData(list) {
+            const root = { name: "Mappa Competenze Chirurgiche", children: [] };
+            const macrosIndex = {};
+
+            const LEVEL_LABELS = { 1: "Dir", 2: "Ind", 3: "Aut", 4: "Form" };
+            const LEVEL_COLORS = {
+                1: "#f97373", 2: "#facc6b", 3: "#34d3c9", 4: "#c4a1ff"
+            };
+
+            (list || all).forEach(item => {
+                const details = item.allItemDetails || [];
+                details.forEach(d => {
+                    const score = d.score || 0;
+                    if (score < 1 || score > 4) return;
+
+                    const sectionKey = d.sectionKey;
+                    if (!sectionKey) return;
+
+                    const macro = SECTION_TO_MACRO[sectionKey] || item.reparto || "Altro";
+
+                    if (!macrosIndex[macro]) {
+                        const macroNode = { name: macro, children: [] };
+                        macrosIndex[macro] = { node: macroNode, specialties: {} };
+                        root.children.push(macroNode);
+                    }
+                    const macroRecord = macrosIndex[macro];
+
+                    if (!macroRecord.specialties[sectionKey]) {
+                        const levels = {
+                            1: { name: LEVEL_LABELS[1], value: 0, itemStyle: { color: LEVEL_COLORS[1] } },
+                            2: { name: LEVEL_LABELS[2], value: 0, itemStyle: { color: LEVEL_COLORS[2] } },
+                            3: { name: LEVEL_LABELS[3], value: 0, itemStyle: { color: LEVEL_COLORS[3] } },
+                            4: { name: LEVEL_LABELS[4], value: 0, itemStyle: { color: LEVEL_COLORS[4] } }
+                        };
+                        const specNode = { name: sectionKey, children: [levels[1], levels[2], levels[3], levels[4]] };
+                        macroRecord.specialties[sectionKey] = { node: specNode, levels };
+                        macroRecord.node.children.push(specNode);
+                    }
+
+                    const specRecord = macroRecord.specialties[sectionKey];
+                    specRecord.levels[score].value += 1;
+                });
+            });
+
+            return root;
+        }
+
+        // FUNZIONE FISSA: Crea il Sunburst nella modale usando i dati filtrati del reparto
+        function createSunburstChartModal(tipo, repartoLabel) {
+            const chartElement = document.getElementById(`sunburst${tipo}`);
+            if (!chartElement) return;
+
+            // Inizializza Echarts, usando il tema corretto (dark/light)
+            const chart = echarts.init(chartElement, isDarkMode() ? 'dark' : 'light');
+            chart.clear();
+
+            // 1. Filtra l'array globale 'all' per il reparto specifico
+            const filteredData = all.filter(item => item.reparto === repartoLabel);
+
+            // 2. Costruisci la struttura dati Sunburst con i dati filtrati
+            const dataRoot = buildSunburstData(filteredData);
+
+            // Estrai i dati del reparto specifico
+            const macroNode = dataRoot.children.find(n => n.name === repartoLabel);
+
+            if (!macroNode || !macroNode.children || macroNode.children.length === 0) {
+                chart.setOption({ title: { text: 'Nessun dato disponibile', top: 'center', left: 'center', textStyle: { color: Chart.defaults.color } } });
+                chart.resize();
+                return;
+            }
+
+            // 3. Imposta le opzioni
+            chart.setOption({
+                tooltip: {
+                    trigger: 'item',
+                    formatter: info => {
+                        const node = info.data;
+                        const value = node.value || 0;
+                        if (value === 0) return '';
+                        // Macro-area: nome (es. Chirurgia Addominale)
+                        if (node.children) {
+                            const total = node.children.reduce((sum, c) => sum + c.value, 0);
+                            return `<b>${node.name}</b><br>Totale valutazioni: ${total}`;
+                        }
+                        // Livello: Nome (es. Autonomo) + Valore
+                        return `<b>${node.name}</b>: ${value} valutazioni`;
+                    }
+                },
+                series: [{
+                    type: 'sunburst',
+                    radius: ['10%', '95%'],
+                    sort: null,
+                    emphasis: { focus: 'ancestor' },
+                    data: macroNode.children,
+                    label: { rotate: 'radial' },
+                    levels: [
+                        {},
+                        { r0: '10%', r: '30%', label: { rotate: 'tangential', fontSize: 12 } },
+                        { r0: '30%', r: '65%', label: { rotate: 'tangential', fontSize: 11 } },
+                        { r0: '65%', r: '95%', label: { rotate: 'tangential', fontSize: 9 } }
+                    ]
+                }]
+            });
+            chart.resize();
+        }
+
+        /* ==========================
+           LOGICA MODALI PRINCIPALI
+           ========================== */
+
+        function computeKPIsForReparto(reparto) {
+            const filtered = all.filter(v => v.reparto === reparto);
+            if (filtered.length === 0) return null;
+
+            // Usiamo ICP level/score per i calcoli medi
+            const totalPerf = filtered.reduce((sum, v) => sum + v.percentuale, 0);
+            const totalLevel = filtered.reduce((sum, v) => sum + v.icpLevel, 0);
+            const totalIcp = filtered.reduce((sum, v) => sum + (v.icpScore || 0), 0);
+            const totalEvals = filtered.reduce((sum, v) => sum + (v.allItemDetails.length > 0 ? 1 : 0), 0); // Conteggio valutazioni complete
+
+            // Distribuzione Livelli (ICP Level)
+            const levelDistribution = { 1: 0, 2: 0, 3: 0, 4: 0 };
+            filtered.forEach(v => levelDistribution[v.icpLevel]++);
+
+            // Media per Area (Usiamo il punteggio medio ICP per macroarea)
+            const areaScores = {};
+            COMPETENCE_DATA[reparto].forEach(macro => {
+                const areaDetails = filtered.flatMap(item =>
+                    item.allItemDetails.filter(d => d.sectionKey === macro.key)
+                );
+
+                const totalAreaScore = areaDetails.reduce((sum, d) => sum + (d.score || 0), 0);
+                const totalAreaItems = areaDetails.length * 4;
+                const avgPerf = totalAreaItems > 0 ? (totalAreaScore / totalAreaItems) * 100 : 0;
+
+                areaScores[macro.key] = avgPerf;
+            });
+
+            return {
+                count: filtered.length,
+                levelAvg: totalLevel / filtered.length,
+                perfAvg: totalPerf / filtered.length,
+                icpAvg: totalIcp / filtered.length,
+                evalsCount: totalEvals,
+                levelDistribution: levelDistribution,
+                areaScores: areaScores
+            };
+        }
+
+        function fillModalNurseList(tipo, repartoLabel) {
+            const tbody = document.getElementById(`modalNurseListBody${tipo}`);
+            tbody.innerHTML = '';
+            const filtered = all.filter(v => v.reparto === repartoLabel);
+
+            filtered.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer';
+                tr.innerHTML = `
+                            <td class="p-2">${item.nome} ${item.cognome}</td>
+                            <td class="p-2">${item.icpLevelText || '—'}</td>
+                            <td class="p-2">${item.date.split(' ')[0]}</td>
+                        `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateModal(tipo) {
+            const repartoLabel = MODAL_MACRO_MAP[tipo];
+            if (!repartoLabel) return;
+
+            const kpi = computeKPIsForReparto(repartoLabel);
+
+            if (kpi) {
+                // 2. Update KPI boxes
+                document.getElementById(`kpi${tipo}Count`).textContent = kpi.count;
+                document.getElementById(`kpi${tipo}Level`).textContent = kpi.levelAvg.toFixed(2);
+                document.getElementById(`kpi${tipo}Perf`).textContent = `${kpi.perfAvg.toFixed(1)}%`;
+                document.getElementById(`kpi${tipo}ICP`).textContent = `${kpi.icpAvg.toFixed(2)}`;
+                document.getElementById(`kpi${tipo}Evals`).textContent = kpi.evalsCount;
+
+                // 3. Update Charts
+                ensurePieChart(tipo, kpi);
+                ensureBarChart(tipo, kpi);
+                createSunburstChartModal(tipo, repartoLabel); // Funzione corretta
+
+                // 4. Fill Nurse List
+                fillModalNurseList(tipo, repartoLabel);
+            } else {
+                // Handle no data case for KPIs
+                const noData = '—';
+                document.getElementById(`kpi${tipo}Count`).textContent = noData;
+                document.getElementById(`kpi${tipo}Level`).textContent = noData;
+                document.getElementById(`kpi${tipo}Perf`).textContent = noData;
+                document.getElementById(`kpi${tipo}ICP`).textContent = noData;
+                document.getElementById(`kpi${tipo}Evals`).textContent = noData;
+                fillModalNurseList(tipo, repartoLabel);
+            }
+        }
+
+        function openModal(tipo) {
+            const modalId = {
+                Generali: 'modalGenerali',
+                Specialistiche: 'modalSpecialistiche',
+                Oculistica: 'modalOculistica'
+            }[tipo];
+
+            if (!modalId) return;
+
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+
+            // Chiama updateModal per popolare i dati prima di mostrare
+            updateModal(tipo);
+
+            // Show the modal
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal(tipo) {
+            const modalId = {
+                Generali: 'modalGenerali',
+                Specialistiche: 'modalSpecialistiche',
+                Oculistica: 'modalOculistica',
+                Details: 'detailsModal'
+            }[tipo];
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        /* ==========================
+           MODALE DETTAGLI (FUNZIONE showDetails)
+           ========================== */
+
+        function showDetails(item) {
+            if (!detailsModal || !modalNurseName || !nurseDetailsSummary || !competenceDetails) return;
+
+            modalNurseName.textContent = `Dettagli Valutazione: ${item.nome} ${item.cognome}`;
+
+            // Assicuriamo che LCGM e ICP siano stati calcolati
+            if (!item.aiLevel || !item.icpLevel) {
+                enrichAllWithICP();
+                enrichAllWithLCGM();
+            }
+
+            nurseDetailsSummary.innerHTML = `
+                <p><strong>Matricola:</strong> ${item.matricola}</p>
+                <p><strong>Reparto Valutato:</strong> ${item.reparto}</p>
+                <p><strong>Data Valutazione:</strong> ${item.date}</p>
+                <p><strong>Valutatore:</strong> ${item.valutatore}</p>
+                <p class="mt-2 font-bold">
+                    Percentuale di Performance:
+                    <span class="text-blue-600 dark:text-blue-400">${item.percentuale?.toFixed(1) || 0}%</span>
+                </p>
+                <p>
+                    <strong>ICP:</strong>
+                    <span class="text-emerald-600 dark:text-emerald-400">
+                        ${item.icpLevelText || '—'} (${((item.icpScore || 0) * 100).toFixed(1)}%)
+                    </span>
+                </p>
+                <p>
+                    <strong>Livello AI (LCGM):</strong>
+                    <span class="text-green-600 dark:text-green-400">
+                        ${item.aiLevelText || 'Non calcolato'}
+                        ${item.aiScore ? ` (score: ${item.aiScore.toFixed(2)})` : ''}
+                    </span>
+                </p>
+                <p><strong>Punteggio Totale:</strong> ${item.overall}</p>
+            `;
+
+            competenceDetails.innerHTML = '';
+            let currentSection = '';
+            item.allItemDetails.forEach(detail => {
+                if (detail.sectionKey !== currentSection) {
+                    currentSection = detail.sectionKey;
+                    competenceDetails.innerHTML += `<h5 class="font-bold mt-4 mb-1 text-blue-600 dark:text-blue-400">${currentSection}</h5>`;
+                }
+                const isAnswered = detail.score > 0;
+                const color = isAnswered
+                    ? (detail.score >= 3 ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400')
+                    : 'text-gray-500 dark:text-gray-400';
+
+                competenceDetails.innerHTML += `
+                    <div class="flex flex-col space-y-0 border-l-2 pl-2 border-gray-200 dark:border-gray-700">
+                        <span class="text-xs text-gray-700 dark:text-gray-300">${detail.question}</span>
+                        <span class="${color} text-sm font-semibold ml-0">${detail.level}</span>
+                    </div>
+                `;
+            });
+
+            if (radarDetailsChart) radarDetailsChart.destroy();
+            const labels = item.evalDetails.map(s => s.key);
+            const dataForRadar = item.evalDetails.map(d => d.average || 0);
+
+            const radarCtx = document.getElementById('radarDetailsChart').getContext('2d');
+            radarDetailsChart = new Chart(radarCtx, {
+                type: 'radar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Livello Medio per Area',
+                        data: dataForRadar,
+                        backgroundColor: isDarkMode() ? 'rgba(59,130,246,0.3)' : 'rgba(59,130,246,0.18)',
+                        borderColor: '#3b82f6',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { r: { beginAtZero: true, max: 4, angleLines: { color: Chart.defaults.borderColor }, grid: { color: Chart.defaults.borderColor }, pointLabels: { color: Chart.defaults.color } } },
+                    plugins: { legend: { labels: { color: Chart.defaults.color } } }
+                }
+            });
+
+            detailsModal.classList.remove('hidden');
+            detailsModal.classList.add('flex');
+        }
+
+        // Event listener per chiudere il dettaglio
+        if (closeModalButtons) {
+            closeModalButtons.forEach(btn => btn?.addEventListener('click', () => closeModal('Details')));
+        }
+        if (detailsModal) {
+            detailsModal.addEventListener('click', (e) => {
+                if (e.target === detailsModal) closeModal('Details');
+            });
+        }
+
+
+        /* ==========================
+           TABELLA + FILTRI + TIMER
+           ========================== */
+
+        function populateReparti() {
+            const reparti = Array.from(new Set(all.map(x => x.reparto).filter(Boolean)));
+            if (filterReparto) {
+                filterReparto.innerHTML = '<option value="">— Tutti —</option>';
+                reparti.forEach(r => {
+                    const o = document.createElement('option');
+                    o.value = r;
+                    o.textContent = r;
+                    filterReparto.appendChild(o);
+                });
+            }
+        }
+
+        function updateTimers() {
+    const badges = document.querySelectorAll('.timer-badge');
+    const now = new Date();
+
+    badges.forEach(b => {
+        const dateStr = b.dataset.date;
+        if (!dateStr) {
+            b.textContent = '—';
+            return;
+        }
+
+        const createdAt = new Date(dateStr);
+        if (isNaN(createdAt.getTime())) {
+            b.textContent = '—';
+            return;
+        }
+
+        // 👉 durata totale in giorni
+        const TOTAL_DAYS = 30;
+
+        // giorni passati
+        const diffMs = now - createdAt;
+        const passedDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        // giorni rimanenti (countdown)
+        const remainingDays = TOTAL_DAYS - passedDays;
+
+        let text = '';
+        let cls = 'bg-gray-200 text-gray-800';
+
+        if (remainingDays <= 0) {
+            text = 'Scaduto';
+            cls = 'bg-gray-300 text-gray-700';
+        } 
+        else if (remainingDays <= 9) {
+            text = remainingDays + ' gg';
+            cls = 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+        } 
+        else if (remainingDays <= 19) {
+            text = remainingDays + ' gg';
+            cls = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+        } 
+        else {
+            text = remainingDays + ' gg';
+            cls = 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        }
+
+        b.textContent = text;
+        b.className = `timer-badge px-2 py-1 rounded text-xs font-semibold ${cls}`;
+    });
+}
+
+
+        function renderTable() {
+            const filterRepartoValue = filterReparto ? filterReparto.value : '';
+            const searchTextValue = (searchText ? searchText.value : '').toLowerCase();
+
+            let filtered = all.filter(item => {
+                if (filterRepartoValue && item.reparto !== filterRepartoValue) return false;
+                if (searchTextValue &&
+                    !item.nome.toLowerCase().includes(searchTextValue) &&
+                    !item.cognome.toLowerCase().includes(searchTextValue) &&
+                    !item.matricola.toLowerCase().includes(searchTextValue)
+                ) return false;
+                return true;
+            });
+
+            if (!resultsTableBody) return;
+            resultsTableBody.innerHTML = '';
+
+            if (!filtered.length) {
+                resultsTableBody.innerHTML = '<tr><td colspan="8" class="p-3 text-center text-gray-500">Nessun dato trovato con i filtri correnti.</td></tr>';
+                updateBarChart(filtered);
+                return;
+            }
+
+            filtered.forEach(item => {
+                const row = resultsTableBody.insertRow();
+                row.className = 'border-b hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer transition-colors';
+
+                const icpColor =
+                    item.icpLevel === 4 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' :
+                        item.icpLevel === 3 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                            item.icpLevel === 2 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                                'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+
+                const lcgmColor =
+                    item.aiLevel === 4 ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                        item.aiLevel === 3 ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200' :
+                            item.aiLevel === 2 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                                'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+
+                row.innerHTML = `
+                    <td class="p-3 text-sm">${item.date.split(' ')[0]}</td>
+                    <td class="p-3 text-sm">${item.nome} ${item.cognome}</td>
+                    <td class="p-3 text-sm">${item.matricola}</td>
+                    <td class="p-3 text-sm">${normalizeReparto(item.reparto)}</td>
+                    <td class="p-3 text-sm">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${icpColor}">
+                            ${((item.icpScore || 0) * 100).toFixed(1)}%
+                        </span>
+                    </td>
+                    <td class="p-3 text-sm">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${lcgmColor}">
+                            ${item.aiLevelText || '—'}
+                        </span>
+                    </td>
+                    <td class="p-3 text-sm font-semibold">
+                        ${item.overall}
+                    </td>
+                    <td class="p-3 text-sm">
+                        <span class="timer-badge px-2 py-1 rounded text-xs font-semibold"
+                              data-date="${item.date}">
+                            —
+                        </span>
+                    </td>
+                `;
+
+                row.addEventListener('click', () => showDetails(item));
+            });
+
+            updateBarChart(filtered);
+            updateTimers();
+        }
+
+        /* ==========================
+           INIZIALIZZAZIONE FINALE
+           ========================== */
+        document.addEventListener('DOMContentLoaded', async () => {
+            applyTheme(currentTheme);
+            initThemeToggle();
+
+            // Inizializza il grafico principale prima del caricamento dati
+            createBarChart();
+
+            // Caricamento ed elaborazione dati
+            await loadAll();
+            enrichAllWithICP();
+            enrichAllWithLCGM();
+
+            // Popolamento DOM
+            populateReparti();
+            renderTable();
+
+            if (filterReparto) filterReparto.addEventListener('change', renderTable);
+            if (searchText) searchText.addEventListener('input', renderTable);
+
+            console.log("✅ Report inizializzato con logica ICP/LCGM e dati SQL");
+        });</script>
+
+    <div id="modalGenerali" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded w-[90%] h-[90%] relative overflow-y-auto">
+            <button class="absolute top-2 right-2 text-red-600 font-bold" onclick="closeModal('Generali')">X</button>
+            <h2 class="text-xl font-semibold mb-4">S.O. Chirurgia Generale</h2>
+            <div class="grid grid-cols-2 gap-4 h-[90%]">
+                <div class="col-span-2 grid grid-cols-5 gap-3 mb-2">
+                    <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded text-center">
+                        <div class="text-xs">Infermieri</div>
+                        <div id="kpiGeneraliCount" class="text-xl font-bold">—</div>
+                    </div>
+                    <div class="bg-green-100 dark:bg-green-900 p-3 rounded text-center">
+                        <div class="text-xs">Livello Medio (ICP)</div>
+                        <div id="kpiGeneraliLevel" class="text-xl font-bold">—</div>
+                    </div>
+                    <div class="bg-yellow-100 dark:bg-yellow-900 p-3 rounded text-center">
+                        <div class="text-xs">Perf. Media (%)</div>
+                        <div id="kpiGeneraliPerf" class="text-xl font-bold">—</div>
+                    </div>
+                    <div class="bg-red-100 dark:bg-red-900 p-3 rounded text-center">
+                        <div class="text-xs">ICP Score Medio</div>
+                        <div id="kpiGeneraliICP" class="text-xl font-bold">—</div>
+                    </div>
+                    <div class="bg-purple-100 dark:bg-purple-900 p-3 rounded text-center">
+                        <div class="text-xs">Tot. Valutazioni</div>
+                        <div id="kpiGeneraliEvals" class="text-xl font-bold">—</div>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <h3 class="text-lg font-semibold mb-3">Distribuzione Livelli (ICP)</h3>
+                    <div class="h-64"> <canvas id="pieGenerali"></canvas> </div>
+                    <h3 class="text-lg font-semibold mb-3">Media % per Area (Performance)</h3>
+                    <div class="h-64"> <canvas id="barGenerali"></canvas> </div>
+                </div>
+                <div class="col-span-1 bg-white dark:bg-gray-700 p-4 rounded shadow overflow-y-auto">
+                    <h3 class="text-lg font-semibold mb-3">📋 Infermieri e Livello ICP</h3>
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100 dark:bg-gray-600">
+                            <tr>
+                                <th class="p-2 text-left">Nome</th>
+                                <th class="p-2 text-left">Livello ICP</th>
+                                <th class="p-2 text-left">Data</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalNurseListBodyGenerali"></tbody>
+                    </table>
+                </div>
+                <div class="col-span-2 bg-white dark:bg-gray-700 p-4 rounded shadow">
+                    <h3 class="text-lg font-semibold mb-3">Mappa delle Competenze (Conteggio risposte per Livello)</h3>
+                    <div id="sunburstGenerali" class="h-96 w-full"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalSpecialistiche" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded w-[90%] h-[90%] relative overflow-y-auto">
+            <button class="absolute top-2 right-2 text-red-600 font-bold" onclick="closeModal('Specialistiche')">X</button>
+            <h2 class="text-xl font-semibold mb-4">S.O. Chirurgie Specialistiche</h2>
+            <div class="grid grid-cols-2 gap-4 h-[90%]">
+                <div class="col-span-2 grid grid-cols-5 gap-3 mb-2">
+                    <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded text-center">
+                        <div class="text-xs">Infermieri</div>
+                        <div id="kpiSpecialisticheCount" class="text-xl font-bold">—</div>
+                    </div>
+                    <div class="bg-green-100 dark:bg-green-900 p-3 rounded text-center">
+                        <div class="text-xs">Livello Medio (ICP)</div>
+                        <div id="kpiSpecialisticheLevel" class="text-xl font-bold">—</div>
+                    </div>
+                    <div class="bg-yellow-100 dark:bg-yellow-900 p-3 rounded text-center">
+                        <div class="text-xs">Perf. Media (%)</div>
+                        <div id="kpiSpecialistichePerf" class="text-xl font-bold">—</div>
+                    </div>
+                    <div class="bg-red-100 dark:bg-red-900 p-3 rounded text-center">
+                        <div class="text-xs">ICP Score Medio</div>
+                        <div id="kpiSpecialisticheICP" class="text-xl font-bold">—</div>
+                    </div>
+                    <div class="bg-purple-100 dark:bg-purple-900 p-3 rounded text-center">
+                        <div class="text-xs">Tot. Valutazioni</div>
+                        <div id="kpiSpecialisticheEvals" class="text-xl font-bold">—</div>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <h3 class="text-lg font-semibold mb-3">Distribuzione Livelli (ICP)</h3>
+                    <div class="h-64"> <canvas id="pieSpecialistiche"></canvas> </div>
+                    <h3 class="text-lg font-semibold mb-3">Media % per Area (Performance)</h3>
+                    <div class="h-64"> <canvas id="barSpecialistiche"></canvas> </div>
+                </div>
+                <div class="col-span-1 bg-white dark:bg-gray-700 p-4 rounded shadow overflow-y-auto">
+                    <h3 class="text-lg font-semibold mb-3">📋 Infermieri e Livello ICP</h3>
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100 dark:bg-gray-600">
+                            <tr>
+                                <th class="p-2 text-left">Nome</th>
+                                <th class="p-2 text-left">Livello ICP</th>
+                                <th class="p-2 text-left">Data</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalNurseListBodySpecialistiche"></tbody>
+                    </table>
+                </div>
+                <div class="col-span-2 bg-white dark:bg-gray-700 p-4 rounded shadow">
+                    <h3 class="text-lg font-semibold mb-3">Mappa delle Competenze (Conteggio risposte per Livello)</h3>
+                    <div id="sunburstSpecialistiche" class="h-96 w-full"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalOculistica" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 p-4 rounded w-[90%] h-[90%] relative overflow-y-auto">
+            <button class="absolute top-2 right-2 text-red-600 font-bold" onclick="closeModal('Oculistica')">X</button>
+            <h2 class="text-xl font-semibold mb-4">Day Surgery Oculistica</h2>
+            <div class="grid grid-cols-2 gap-4 h-[90%]">
+                <div class="col-span-2 grid grid-cols-5 gap-3 mb-2">
+                    <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded text-center">
+                        <div class="text-xs">Infermieri</div>
+                        <div id="kpiOculisticaCount" class="text-xl font-bold">—</div>
+                    </div>
+                    <div class="bg-green-100 dark:bg-green-900 p-3 rounded text-center">
+                        <div class="text-xs">Livello Medio (ICP)</div>
+                        <div id="kpiOculisticaLevel" class="text-xl font-bold">—</div>
+                    </div>
+                    <div class="bg-yellow-100 dark:bg-yellow-900 p-3 rounded text-center">
+                        <div class="text-xs">Perf. Media (%)</div>
+                        <div id="kpiOculisticaPerf" class="text-xl font-bold">—</div>
+                    </div>
+                    <div class="bg-red-100 dark:bg-red-900 p-3 rounded text-center">
+                        <div class="text-xs">ICP Score Medio</div>
+                        <div id="kpiOculisticaICP" class="text-xl font-bold">—</div>
+                    </div>
+                    <div class="bg-purple-100 dark:bg-purple-900 p-3 rounded text-center">
+                        <div class="text-xs">Tot. Valutazioni</div>
+                        <div id="kpiOculisticaEvals" class="text-xl font-bold">—</div>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <h3 class="text-lg font-semibold mb-3">Distribuzione Livelli (ICP)</h3>
+                    <div class="h-64"> <canvas id="pieOculistica"></canvas> </div>
+                    <h3 class="text-lg font-semibold mb-3">Media % per Area (Performance)</h3>
+                    <div class="h-64"> <canvas id="barOculistica"></canvas> </div>
+                </div>
+                <div class="col-span-1 bg-white dark:bg-gray-700 p-4 rounded shadow overflow-y-auto">
+                    <h3 class="text-lg font-semibold mb-3">📋 Infermieri e Livello ICP</h3>
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100 dark:bg-gray-600">
+                            <tr>
+                                <th class="p-2 text-left">Nome</th>
+                                <th class="p-2 text-left">Livello ICP</th>
+                                <th class="p-2 text-left">Data</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalNurseListBodyOculistica"></tbody>
+                    </table>
+                </div>
+                <div class="col-span-2 bg-white dark:bg-gray-700 p-4 rounded shadow">
+                    <h3 class="text-lg font-semibold mb-3">Mappa delle Competenze (Conteggio risposte per Livello)</h3>
+                    <div id="sunburstOculistica" class="h-96 w-full"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
